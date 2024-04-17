@@ -13,7 +13,13 @@ echo "Current directory: $current_dir"
 echo "Files in current directory:"
 ls -l
 
-cd app/Rosie
+cd /app/Rosie
+
+current_dir=$(pwd)
+echo "Current directory: $current_dir"
+echo "Files in current directory:"
+ls -l
+
 pip3 install -U -r requirements.txt
 echo "Starting Bot...."
 python3 bot.py
