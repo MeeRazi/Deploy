@@ -10,6 +10,8 @@ git clone -b Pimon "https://$SEC_KEY@github.com/Lemx5/Rosie"
 # Print the current directory
 current_dir=$(pwd)
 echo "Current directory: $current_dir"
+echo "Files in current directory:"
+ls -l
 
 cd Pimon/Rosie
 pip3 install -U -r requirements.txt
