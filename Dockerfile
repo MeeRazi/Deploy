@@ -1,14 +1,12 @@
-# Use the official Python image as base
-FROM python:3.9-slim
-# Set the working directory in the container
-WORKDIR /app
-# Copy the script into the container
-COPY run.sh .
-# Make the script executable
-RUN chmod +x run.sh
-# Install git
-RUN apt-get update && apt-get install -y git && pip install --upgrade pip && pip install -r requirements.txt
-# Expose Port
-EXPOSE 8080
-# Run the script when the container starts
-CMD ["./run.sh"]
+FROM python:3.8-slim-buster
+
+RUN apt update && apt upgrade -y
+RUN apt install git -y
+COPY requirements.txt /requirements.txt
+
+RUN cd /
+RUN pip3 install -U pip && pip3 install -U -r requirements.txt
+RUN mkdir /EvaMaria
+WORKDIR /EvaMaria
+COPY start.sh /start.sh
+CMD ["/bin/bash", "/start.sh"]
