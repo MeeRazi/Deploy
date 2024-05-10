@@ -13,5 +13,6 @@ RUN chmod +x run.sh
 # Install git
 RUN apt-get update && apt-get install -y git
 
+EXPOSE 8080
 # Run the script when the container starts
 CMD ["./run.sh"]
