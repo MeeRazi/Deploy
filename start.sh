@@ -1,6 +1,6 @@
-$UPSTREAM_REPO
-echo "Cloning Custom Repo from $UPSTREAM_REPO "
-git clone $UPSTREAM_REPO /EvaMaria
+SEC_KEY=$SECREAT_KEY
+echo "Cloning Custom Repo"
+git clone SEC_KEY /EvaMaria
 cd /EvaMaria
 pip3 install -U -r requirements.txt
 echo "Starting Bot...."
