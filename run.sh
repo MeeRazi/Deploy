@@ -7,6 +7,5 @@ echo "SEC_KEY: $SEC_KEY"
 
 git clone -b Pimon "https://$SEC_KEY@github.com/Lemx5/Rosie"
 cd /app/Rosie
-pip3 install -U -r requirements.txt
 echo "Starting Bot...."
 python3 bot.py
