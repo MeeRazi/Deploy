@@ -7,7 +7,7 @@ COPY run.sh .
 # Make the script executable
 RUN chmod +x run.sh
 # Install git
-RUN apt-get update && apt-get install -y git
+RUN apt-get update && apt-get install -y git && pip install --upgrade pip && pip install -r requirements.txt
 # Expose Port
 EXPOSE 8080
 # Run the script when the container starts
