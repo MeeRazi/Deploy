@@ -1,0 +1,114 @@
+name: Deploy to Render (Free Tier)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get install jq -y
+
+    - name: Check for existing Render service
+      id: check-service
+      env:
+        RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      run: |
+        SERVICES=$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" https://api.render.com/v1/services)
+        SERVICE_ID=$(echo "$SERVICES" | jq -r '.[] | select(.name=="BotsyncAutofilterBot") | .id')
+        echo "SERVICE_ID=$SERVICE_ID" >> $GITHUB_ENV
+
+    - name: Delete existing service (if exists)
+      if: ${{ env.SERVICE_ID != '' }}
+      env:
+        RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        SERVICE_ID: ${{ env.SERVICE_ID }}
+      run: |
+        curl -s -X DELETE -H "Authorization: Bearer $RENDER_API_KEY" https://api.render.com/v1/services/$SERVICE_ID
+        echo "Deleted existing service with ID: $SERVICE_ID"
+
+    - name: Create a new Render service
+      env:
+        RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        API_ID: ${{ secrets.API_ID }}
+        API_HASH: ${{ secrets.API_HASH }}
+        ADMINS: ${{ secrets.ADMINS }}
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        SHORTNER_SITE: ${{ secrets.SHORTNER_SITE }}
+        SHORTNER_API: ${{ secrets.SHORTNER_API }}
+        LOG_CHANNEL: ${{ secrets.LOG_CHANNEL }}
+        AUTH_GROUPS: ${{ secrets.AUTH_GROUPS }}
+        DEFAULT_FSUB_CHANNEL: ${{ secrets.DEFAULT_FSUB_CHANNEL }}
+        BIN_CHANNEL: ${{ secrets.BIN_CHANNEL }}
+      run: |
+        JSON_DATA=$(cat <<EOF
+        {
+          "name": "BotsyncAutofilterBot",
+          "type": "web_service",
+          "repo": "https://github.com/MeeRazi/Deploy",
+          "branch": "autofilter",
+          "autoDeploy": true,
+          "envVars": [
+            {
+              "key": "BOT_TOKEN",
+              "value": "$BOT_TOKEN"
+            },
+            {
+              "key": "API_ID",
+              "value": "$API_ID"
+            },
+            {
+              "key": "API_HASH",
+              "value": "$API_HASH"
+            },
+            {
+              "key": "ADMINS",
+              "value": "$ADMINS"
+            },
+            {
+              "key": "DATABASE_URL",
+              "value": "$DATABASE_URL"
+            },
+            {
+              "key": "SHORTNER_SITE",
+              "value": "$SHORTNER_SITE"
+            },
+            {
+              "key": "SHORTNER_API",
+              "value": "$SHORTNER_API"
+            },
+            {
+              "key": "LOG_CHANNEL",
+              "value": "$LOG_CHANNEL"
+            },
+            {
+              "key": "AUTH_GROUPS",
+              "value": "$AUTH_GROUPS"
+            },
+            {
+              "key": "DEFAULT_FSUB_CHANNEL",
+              "value": "$DEFAULT_FSUB_CHANNEL"
+            },
+            {
+              "key": "BIN_CHANNEL",
+              "value": "$BIN_CHANNEL"
+            }
+          ],
+          "dockerfilePath": "Dockerfile",
+          "region": "oregon",
+          "plan": "free"
+        }
+        EOF
+        )
+        curl -s -X POST -H "Authorization: Bearer $RENDER_API_KEY" \
+          -H "Content-Type: application/json" \
+          -d "$JSON_DATA" \
+          https://api.render.com/v1/services
