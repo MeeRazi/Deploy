@@ -64,7 +64,31 @@ jobs:
         echo "Creating new service..."
         
         # Create JSON payload using a variable
-        JSON_DATA='{"name":"BotsyncAutofilterBot","type":"web_service","runtime":"docker","owner":"usr_abc123","repo":"https://github.com/MeeRazi/AutoFilter","branch":"main","envVars":[{"key":"BOT_TOKEN","value":"'"$BOT_TOKEN"'"},{"key":"API_ID","value":"'"$API_ID"'"},{"key":"API_HASH","value":"'"$API_HASH"'"},{"key":"ADMINS","value":"'"$ADMINS"'"},{"key":"DATABASE_URL","value":"'"$DATABASE_URL"'"},{"key":"SHORTNER_SITE","value":"'"$SHORTNER_SITE"'"},{"key":"SHORTNER_API","value":"'"$SHORTNER_API"'"},{"key":"LOG_CHANNEL","value":"'"$LOG_CHANNEL"'"},{"key":"AUTH_GROUPS","value":"'"$AUTH_GROUPS"'"},{"key":"DEFAULT_FSUB_CHANNEL","value":"'"$DEFAULT_FSUB_CHANNEL"'"},{"key":"BIN_CHANNEL","value":"'"$BIN_CHANNEL"'"},{"key":"GIT_TOKEN","value":"'"$GIT_TOKEN"'"}],"dockerfilePath":"./Dockerfile","region":"oregon","plan":"free"}'
+        JSON_DATA='{
+          "name": "BotsyncAutofilterBot",
+          "type": "web_service",
+          "runtime": "docker",
+          "ownerID": "${{ secrets.RENDER_OWNER_ID }}",
+          "repo": "https://github.com/MeeRazi/AutoFilter",
+          "branch": "main",
+          "envVars": [
+            {"key": "BOT_TOKEN", "value": "'"$BOT_TOKEN"'"},
+            {"key": "API_ID", "value": "'"$API_ID"'"},
+            {"key": "API_HASH", "value": "'"$API_HASH"'"},
+            {"key": "ADMINS", "value": "'"$ADMINS"'"},
+            {"key": "DATABASE_URL", "value": "'"$DATABASE_URL"'"},
+            {"key": "SHORTNER_SITE", "value": "'"$SHORTNER_SITE"'"},
+            {"key": "SHORTNER_API", "value": "'"$SHORTNER_API"'"},
+            {"key": "LOG_CHANNEL", "value": "'"$LOG_CHANNEL"'"},
+            {"key": "AUTH_GROUPS", "value": "'"$AUTH_GROUPS"'"},
+            {"key": "DEFAULT_FSUB_CHANNEL", "value": "'"$DEFAULT_FSUB_CHANNEL"'"},
+            {"key": "BIN_CHANNEL", "value": "'"$BIN_CHANNEL"'"},
+            {"key": "GIT_TOKEN", "value": "'"$GIT_TOKEN"'"}
+          ],
+          "dockerfilePath": "./Dockerfile",
+          "region": "oregon",
+          "plan": "free"
+        }'
         
         # Send create request and capture response
         RESPONSE=$(curl -s -X POST \
