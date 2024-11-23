@@ -18,8 +18,8 @@ jobs:
       env:
         RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
       run: |
-        SERVICES=$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" "https://api.render.com/v1/services?name=BotsyncAutofilterBot")
-        SERVICE_ID=$(echo "$SERVICES" | jq -r '.[0].id // empty')
+        SERVICES=$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" "https://api.render.com/v1/services?limit=20")
+        SERVICE_ID=$(echo "$SERVICES" | jq -r '.[] | select(.name=="BotsyncAutofilterBot") | .id')
         echo "SERVICE_ID=$SERVICE_ID" >> $GITHUB_ENV
         
     - name: Delete existing service (if exists)
@@ -30,8 +30,8 @@ jobs:
       run: |
         curl -s -X DELETE -H "Authorization: Bearer $RENDER_API_KEY" "https://api.render.com/v1/services/$SERVICE_ID"
         echo "Deleted existing service with ID: $SERVICE_ID"
-        # Wait a few seconds to ensure the deletion is processed
-        sleep 5
+        # Wait for deletion to complete
+        sleep 10
         
     - name: Create a new Render service
       env:
@@ -49,90 +49,53 @@ jobs:
         BIN_CHANNEL: ${{ secrets.BIN_CHANNEL }}
         GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
       run: |
+        # Create JSON payload
         JSON_DATA=$(cat <<EOF
         {
-          "type": "web_service",
           "name": "BotsyncAutofilterBot",
-          "ownerId": "team_abc123",
+          "type": "web_service",
+          "runtime": "docker",
           "repo": "https://github.com/MeeRazi/AutoFilter",
           "branch": "main",
-          "serviceName": "BotsyncAutofilterBot",
-          "serviceDetails": {
-            "env": "docker",
-            "envSpecificDetails": {
-              "dockerfilePath": "./Dockerfile",
-              "buildCommand": null,
-              "startCommand": null
-            },
-            "environmentVariables": [
-              {
-                "key": "BOT_TOKEN",
-                "value": "$BOT_TOKEN"
-              },
-              {
-                "key": "API_ID",
-                "value": "$API_ID"
-              },
-              {
-                "key": "API_HASH",
-                "value": "$API_HASH"
-              },
-              {
-                "key": "ADMINS",
-                "value": "$ADMINS"
-              },
-              {
-                "key": "DATABASE_URL",
-                "value": "$DATABASE_URL"
-              },
-              {
-                "key": "SHORTNER_SITE",
-                "value": "$SHORTNER_SITE"
-              },
-              {
-                "key": "SHORTNER_API",
-                "value": "$SHORTNER_API"
-              },
-              {
-                "key": "LOG_CHANNEL",
-                "value": "$LOG_CHANNEL"
-              },
-              {
-                "key": "AUTH_GROUPS",
-                "value": "$AUTH_GROUPS"
-              },
-              {
-                "key": "DEFAULT_FSUB_CHANNEL",
-                "value": "$DEFAULT_FSUB_CHANNEL"
-              },
-              {
-                "key": "BIN_CHANNEL",
-                "value": "$BIN_CHANNEL"
-              },
-              {
-                "key": "GIT_TOKEN",
-                "value": "$GIT_TOKEN"
-              }
-            ],
-            "region": "oregon",
-            "plan": "free"
-          },
-          "autoDeploy": true
+          "envVars": [
+            {"key": "BOT_TOKEN", "value": "$BOT_TOKEN"},
+            {"key": "API_ID", "value": "$API_ID"},
+            {"key": "API_HASH", "value": "$API_HASH"},
+            {"key": "ADMINS", "value": "$ADMINS"},
+            {"key": "DATABASE_URL", "value": "$DATABASE_URL"},
+            {"key": "SHORTNER_SITE", "value": "$SHORTNER_SITE"},
+            {"key": "SHORTNER_API", "value": "$SHORTNER_API"},
+            {"key": "LOG_CHANNEL", "value": "$LOG_CHANNEL"},
+            {"key": "AUTH_GROUPS", "value": "$AUTH_GROUPS"},
+            {"key": "DEFAULT_FSUB_CHANNEL", "value": "$DEFAULT_FSUB_CHANNEL"},
+            {"key": "BIN_CHANNEL", "value": "$BIN_CHANNEL"},
+            {"key": "GIT_TOKEN", "value": "$GIT_TOKEN"}
+          ],
+          "dockerfilePath": "./Dockerfile",
+          "region": "oregon",
+          "plan": "free"
         }
         EOF
         )
         
-        # Create the service using the updated API endpoint
+        # Create the service
+        echo "Creating service..."
         RESPONSE=$(curl -s -X POST \
           -H "Authorization: Bearer $RENDER_API_KEY" \
           -H "Content-Type: application/json" \
           -d "$JSON_DATA" \
           "https://api.render.com/v1/services")
         
-        # Check for errors in the response
-        if echo "$RESPONSE" | jq -e '.error' >/dev/null; then
-          echo "Error creating service: $(echo "$RESPONSE" | jq -r '.error')"
-          exit 1
+        # Debug output (masked)
+        echo "API Response:"
+        echo "$RESPONSE" | jq 'del(.envVars[].value)'
+        
+        # Check for errors
+        if echo "$RESPONSE" | jq -e 'has("id")' >/dev/null; then
+          SERVICE_ID=$(echo "$RESPONSE" | jq -r '.id')
+          echo "Service created successfully with ID: $SERVICE_ID"
         else
-          echo "Service created successfully: $(echo "$RESPONSE" | jq -r '.service.id')"
+          echo "Error creating service. Response:"
+          echo "$RESPONSE"
+          exit 1
         fi
