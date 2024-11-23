@@ -1,39 +1,38 @@
 name: Deploy to Render (Free Tier)
-
 on:
   push:
     branches:
       - autofilter
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-
+      
     - name: Install dependencies
       run: sudo apt-get update && sudo apt-get install jq -y
-
+      
     - name: Check for existing Render service
       id: check-service
       env:
         RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
       run: |
-        SERVICES=$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" https://api.render.com/v1/services)
-        SERVICE_ID=$(echo "$SERVICES" | jq -r '.[] | select(.name=="BotsyncAutofilterBot") | .id')
+        SERVICES=$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" "https://api.render.com/v1/services?name=BotsyncAutofilterBot")
+        SERVICE_ID=$(echo "$SERVICES" | jq -r '.[0].id // empty')
         echo "SERVICE_ID=$SERVICE_ID" >> $GITHUB_ENV
-
+        
     - name: Delete existing service (if exists)
       if: ${{ env.SERVICE_ID != '' }}
       env:
         RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         SERVICE_ID: ${{ env.SERVICE_ID }}
       run: |
-        curl -s -X DELETE -H "Authorization: Bearer $RENDER_API_KEY" https://api.render.com/v1/services/$SERVICE_ID
+        curl -s -X DELETE -H "Authorization: Bearer $RENDER_API_KEY" "https://api.render.com/v1/services/$SERVICE_ID"
         echo "Deleted existing service with ID: $SERVICE_ID"
-
+        # Wait a few seconds to ensure the deletion is processed
+        sleep 5
+        
     - name: Create a new Render service
       env:
         RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
@@ -52,68 +51,88 @@ jobs:
       run: |
         JSON_DATA=$(cat <<EOF
         {
-          "name": "BotsyncAutofilterBot",
           "type": "web_service",
+          "name": "BotsyncAutofilterBot",
+          "ownerId": "team_abc123",
           "repo": "https://github.com/MeeRazi/AutoFilter",
           "branch": "main",
-          "autoDeploy": true,
-          "envVars": [
-            {
-              "key": "BOT_TOKEN",
-              "value": "$BOT_TOKEN"
+          "serviceName": "BotsyncAutofilterBot",
+          "serviceDetails": {
+            "env": "docker",
+            "envSpecificDetails": {
+              "dockerfilePath": "./Dockerfile",
+              "buildCommand": null,
+              "startCommand": null
             },
-            {
-              "key": "API_ID",
-              "value": "$API_ID"
-            },
-            {
-              "key": "API_HASH",
-              "value": "$API_HASH"
-            },
-            {
-              "key": "ADMINS",
-              "value": "$ADMINS"
-            },
-            {
-              "key": "DATABASE_URL",
-              "value": "$DATABASE_URL"
-            },
-            {
-              "key": "SHORTNER_SITE",
-              "value": "$SHORTNER_SITE"
-            },
-            {
-              "key": "SHORTNER_API",
-              "value": "$SHORTNER_API"
-            },
-            {
-              "key": "LOG_CHANNEL",
-              "value": "$LOG_CHANNEL"
-            },
-            {
-              "key": "AUTH_GROUPS",
-              "value": "$AUTH_GROUPS"
-            },
-            {
-              "key": "DEFAULT_FSUB_CHANNEL",
-              "value": "$DEFAULT_FSUB_CHANNEL"
-            },
-            {
-              "key": "BIN_CHANNEL",
-              "value": "$BIN_CHANNEL"
-            },
-            {
-              "key": "GIT_TOKEN",
-              "value": "$GIT_TOKEN"
-            }
-          ],
-          "dockerfilePath": "Dockerfile",
-          "region": "oregon",
-          "plan": "free"
+            "environmentVariables": [
+              {
+                "key": "BOT_TOKEN",
+                "value": "$BOT_TOKEN"
+              },
+              {
+                "key": "API_ID",
+                "value": "$API_ID"
+              },
+              {
+                "key": "API_HASH",
+                "value": "$API_HASH"
+              },
+              {
+                "key": "ADMINS",
+                "value": "$ADMINS"
+              },
+              {
+                "key": "DATABASE_URL",
+                "value": "$DATABASE_URL"
+              },
+              {
+                "key": "SHORTNER_SITE",
+                "value": "$SHORTNER_SITE"
+              },
+              {
+                "key": "SHORTNER_API",
+                "value": "$SHORTNER_API"
+              },
+              {
+                "key": "LOG_CHANNEL",
+                "value": "$LOG_CHANNEL"
+              },
+              {
+                "key": "AUTH_GROUPS",
+                "value": "$AUTH_GROUPS"
+              },
+              {
+                "key": "DEFAULT_FSUB_CHANNEL",
+                "value": "$DEFAULT_FSUB_CHANNEL"
+              },
+              {
+                "key": "BIN_CHANNEL",
+                "value": "$BIN_CHANNEL"
+              },
+              {
+                "key": "GIT_TOKEN",
+                "value": "$GIT_TOKEN"
+              }
+            ],
+            "region": "oregon",
+            "plan": "free"
+          },
+          "autoDeploy": true
         }
         EOF
         )
-        curl -s -X POST -H "Authorization: Bearer $RENDER_API_KEY" \
+        
+        # Create the service using the updated API endpoint
+        RESPONSE=$(curl -s -X POST \
+          -H "Authorization: Bearer $RENDER_API_KEY" \
           -H "Content-Type: application/json" \
           -d "$JSON_DATA" \
-          https://api.render.com/v1/services
+          "https://api.render.com/v1/services")
+        
+        # Check for errors in the response
+        if echo "$RESPONSE" | jq -e '.error' >/dev/null; then
+          echo "Error creating service: $(echo "$RESPONSE" | jq -r '.error')"
+          exit 1
+        else
+          echo "Service created successfully: $(echo "$RESPONSE" | jq -r '.service.id')"
+        fi
