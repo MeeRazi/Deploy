@@ -3,7 +3,7 @@ name: Deploy to Render (Free Tier)
 on:
   push:
     branches:
-      - main
+      - autofilter
 
 jobs:
   deploy:
