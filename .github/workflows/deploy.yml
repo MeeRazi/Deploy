@@ -19,18 +19,33 @@ jobs:
         RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
       run: |
         echo "Checking for existing services..."
-        RESPONSE=$(curl -v -H "Authorization: Bearer $RENDER_API_KEY" \
-          "https://api.render.com/v1/services?limit=20" 2>&1)
+        # Get the response without verbose output
+        RESPONSE=$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
+          "https://api.render.com/v1/services?limit=20")
         
-        # Print response status (excluding sensitive data)
-        echo "API Response Headers:"
-        echo "$RESPONSE" | grep -i "< HTTP\|< content-type:" || true
+        # Check HTTP status with a separate call
+        HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+          -H "Authorization: Bearer $RENDER_API_KEY" \
+          "https://api.render.com/v1/services?limit=20")
         
-        # Try to parse service ID
-        SERVICE_ID=$(echo "$RESPONSE" | grep -v "< " | jq -r '.[] | select(.name=="BotsyncAutofilterBot") | .id')
-        echo "SERVICE_ID=${SERVICE_ID:-none}" >> $GITHUB_ENV
+        echo "HTTP Status: $HTTP_STATUS"
         
+        if [ "$HTTP_STATUS" = "200" ]; then
+          # Try to parse service ID from the clean JSON response
+          SERVICE_ID=$(echo "$RESPONSE" | jq -r '.[] | select(.name=="BotsyncAutofilterBot") | .id')
+          if [ -n "$SERVICE_ID" ] && [ "$SERVICE_ID" != "null" ]; then
+            echo "Found existing service with ID: $SERVICE_ID"
+          else
+            echo "No existing service found"
+          fi
+          echo "SERVICE_ID=${SERVICE_ID:-none}" >> $GITHUB_ENV
+        else
+          echo "Error: API request failed with status $HTTP_STATUS"
+          exit 1
+        fi
+      
     - name: Create a new Render service
+      if: env.SERVICE_ID == 'none'
       env:
         RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
@@ -46,67 +61,60 @@ jobs:
         BIN_CHANNEL: ${{ secrets.BIN_CHANNEL }}
         GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
       run: |
-        echo "Preparing to create service..."
+        echo "Creating new service..."
         
         # Create JSON payload
-        JSON_DATA='{
-          "name": "BotsyncAutofilterBot",
-          "type": "web_service",
-          "runtime": "docker",
-          "owner": "usr_abc123",
-          "repo": "https://github.com/MeeRazi/AutoFilter",
-          "branch": "main",
-          "envVars": [
-            {"key": "BOT_TOKEN", "value": "'"$BOT_TOKEN"'"},
-            {"key": "API_ID", "value": "'"$API_ID"'"},
-            {"key": "API_HASH", "value": "'"$API_HASH"'"},
-            {"key": "ADMINS", "value": "'"$ADMINS"'"},
-            {"key": "DATABASE_URL", "value": "'"$DATABASE_URL"'"},
-            {"key": "SHORTNER_SITE", "value": "'"$SHORTNER_SITE"'"},
-            {"key": "SHORTNER_API", "value": "'"$SHORTNER_API"'"},
-            {"key": "LOG_CHANNEL", "value": "'"$LOG_CHANNEL"'"},
-            {"key": "AUTH_GROUPS", "value": "'"$AUTH_GROUPS"'"},
-            {"key": "DEFAULT_FSUB_CHANNEL", "value": "'"$DEFAULT_FSUB_CHANNEL"'"},
-            {"key": "BIN_CHANNEL", "value": "'"$BIN_CHANNEL"'"},
-            {"key": "GIT_TOKEN", "value": "'"$GIT_TOKEN"'"}
-          ],
-          "dockerfilePath": "./Dockerfile",
-          "region": "oregon",
-          "plan": "free"
-        }'
+        JSON_DATA=$(cat <<EOF
+{
+  "name": "BotsyncAutofilterBot",
+  "type": "web_service",
+  "runtime": "docker",
+  "owner": "usr_abc123",
+  "repo": "https://github.com/MeeRazi/AutoFilter",
+  "branch": "main",
+  "envVars": [
+    {"key": "BOT_TOKEN", "value": "$BOT_TOKEN"},
+    {"key": "API_ID", "value": "$API_ID"},
+    {"key": "API_HASH", "value": "$API_HASH"},
+    {"key": "ADMINS", "value": "$ADMINS"},
+    {"key": "DATABASE_URL", "value": "$DATABASE_URL"},
+    {"key": "SHORTNER_SITE", "value": "$SHORTNER_SITE"},
+    {"key": "SHORTNER_API", "value": "$SHORTNER_API"},
+    {"key": "LOG_CHANNEL", "value": "$LOG_CHANNEL"},
+    {"key": "AUTH_GROUPS", "value": "$AUTH_GROUPS"},
+    {"key": "DEFAULT_FSUB_CHANNEL", "value": "$DEFAULT_FSUB_CHANNEL"},
+    {"key": "BIN_CHANNEL", "value": "$BIN_CHANNEL"},
+    {"key": "GIT_TOKEN", "value": "$GIT_TOKEN"}
+  ],
+  "dockerfilePath": "./Dockerfile",
+  "region": "oregon",
+  "plan": "free"
+}
+EOF
+)
         
-        echo "JSON Payload Structure (sensitive values removed):"
-        echo "$JSON_DATA" | jq 'del(.envVars[].value)'
-        
-        echo "Making API request to create service..."
-        RESPONSE=$(curl -v -X POST \
+        # Send create request and capture response
+        RESPONSE=$(curl -s -X POST \
           -H "Authorization: Bearer $RENDER_API_KEY" \
           -H "Content-Type: application/json" \
           -d "$JSON_DATA" \
-          "https://api.render.com/v1/services" 2>&1)
+          "https://api.render.com/v1/services")
         
-        # Print response status and headers (excluding sensitive data)
-        echo "API Response Headers:"
-        echo "$RESPONSE" | grep -i "< HTTP\|< content-type:" || true
+        # Check response status
+        HTTP_STATUS=$(curl -s -X POST -o /dev/null -w "%{http_code}" \
+          -H "Authorization: Bearer $RENDER_API_KEY" \
+          -H "Content-Type: application/json" \
+          -d "$JSON_DATA" \
+          "https://api.render.com/v1/services")
         
-        # Get the response body (everything after the headers)
-        RESPONSE_BODY=$(echo "$RESPONSE" | sed '1,/^[[:space:]]*$/d')
-        
-        echo "Response Body (if not null):"
-        if [ ! -z "$RESPONSE_BODY" ]; then
-          echo "$RESPONSE_BODY" | jq 'if type=="object" then del(.envVars[].value) else . end' || echo "Raw response: $RESPONSE_BODY"
-        else
-          echo "Empty response body"
-        fi
-        
-        # Check if we got a successful response
-        if echo "$RESPONSE" | grep -q "< HTTP/[0-9.]* 2[0-9][0-9]"; then
+        if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
           echo "Service created successfully"
-          if [ ! -z "$RESPONSE_BODY" ]; then
-            SERVICE_ID=$(echo "$RESPONSE_BODY" | jq -r '.id')
-            echo "Service ID: $SERVICE_ID"
+          SERVICE_ID=$(echo "$RESPONSE" | jq -r '.id')
+          if [ -n "$SERVICE_ID" ] && [ "$SERVICE_ID" != "null" ]; then
+            echo "New service ID: $SERVICE_ID"
           fi
         else
-          echo "Error creating service. Check the response above for details."
+          echo "Error creating service. Status code: $HTTP_STATUS"
+          echo "Response: $RESPONSE"
           exit 1
         fi
