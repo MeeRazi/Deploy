@@ -48,7 +48,7 @@ jobs:
         AUTH_GROUPS: ${{ secrets.AUTH_GROUPS }}
         DEFAULT_FSUB_CHANNEL: ${{ secrets.DEFAULT_FSUB_CHANNEL }}
         BIN_CHANNEL: ${{ secrets.BIN_CHANNEL }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
       run: |
         JSON_DATA=$(cat <<EOF
         {
@@ -103,8 +103,8 @@ jobs:
               "value": "$BIN_CHANNEL"
             },
             {
-              "key": "GITHUB_TOKEN",
-              "value": "$GITHUB_TOKEN"
+              "key": "GIT_TOKEN",
+              "value": "$GIT_TOKEN"
             }
           ],
           "dockerfilePath": "Dockerfile",
