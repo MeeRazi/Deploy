@@ -48,13 +48,14 @@ jobs:
         AUTH_GROUPS: ${{ secrets.AUTH_GROUPS }}
         DEFAULT_FSUB_CHANNEL: ${{ secrets.DEFAULT_FSUB_CHANNEL }}
         BIN_CHANNEL: ${{ secrets.BIN_CHANNEL }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         JSON_DATA=$(cat <<EOF
         {
           "name": "BotsyncAutofilterBot",
           "type": "web_service",
-          "repo": "https://github.com/MeeRazi/Deploy",
-          "branch": "autofilter",
+          "repo": "https://github.com/MeeRazi/AutoFilter",
+          "branch": "main",
           "autoDeploy": true,
           "envVars": [
             {
@@ -100,6 +101,10 @@ jobs:
             {
               "key": "BIN_CHANNEL",
               "value": "$BIN_CHANNEL"
+            },
+            {
+              "key": "GITHUB_TOKEN",
+              "value": "$GITHUB_TOKEN"
             }
           ],
           "dockerfilePath": "Dockerfile",
