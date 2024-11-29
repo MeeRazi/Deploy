@@ -1,4 +1,4 @@
-GIT_TOKEN=$GITHUB_TOKEN
+GIT_TOKEN=$GIT_TOKEN
 echo "Cloning Custom Repo"
 git clone -b main "https://$GIT_TOKEN@github.com/MeeRazi/AutoFilter.git" /BotSync
 cd /BotSync
